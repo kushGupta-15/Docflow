@@ -37,7 +37,6 @@ next-env.d.ts
 service_key.json
 
 .env
-firebase.ts
 .vscode
 /rough-wind-1028
 

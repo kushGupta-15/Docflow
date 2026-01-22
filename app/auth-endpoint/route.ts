@@ -1,4 +1,4 @@
-import { adminDb } from "@/firebase-admin";
+import { getAdminDb } from "@/firebase-admin";
 import liveblocks from "@/lib/liveblocks";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     // Test Firestore connection first
     console.log('Testing Firestore connection...');
+    const adminDb = getAdminDb();
     await adminDb.collection('test').limit(1).get();
     console.log('Firestore connection successful');
 

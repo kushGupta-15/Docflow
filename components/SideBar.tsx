@@ -37,10 +37,10 @@ function SideBar() {
 
   // Try a more direct approach - query the user's rooms collection directly
   const [data, loading, error] = useCollection(
-    user && user.emailAddresses[0]?.emailAddress &&
+    user && user.emailAddresses[0]?.emailAddress ?
       query(
         collection(db, 'users', user.emailAddresses[0].emailAddress, 'rooms')
-      )
+      ) : null
   )
 
   // Debug logging
