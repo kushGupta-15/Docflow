@@ -40,3 +40,5 @@ service_key.json
 .vscode
 /rough-wind-1028
 
+.env*
+!.env.example
