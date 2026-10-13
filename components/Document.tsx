@@ -1,9 +1,9 @@
 'use client'
 
-import { FormEvent, useEffect, useState, useTransition } from "react"
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc } from "firebase/firestore"
 import { db } from "@/firebase"
 import { useDocumentData } from "react-firebase-hooks/firestore"
 import Editor from "./Editor"
@@ -12,17 +12,20 @@ import DeleteDocument from "./DeleteDocument"
 import InviteUser from "./InviteUser"
 import ManageUsers from "./ManageUsers"
 import Avatars from "./Avatars"
+import { updateDocumentTitle } from "@/actions/actions"
+import { toast } from "sonner"
 
 function Document({id}:  {id: string}) {
-  const [data, loading, error] = useDocumentData(doc(db, 'documents', id))
+  const docRef = useMemo(() => doc(db, 'documents', id), [id])
+  const [data, loading, error] = useDocumentData(docRef)
 
   const [input, setInput] = useState('')
-  const[isUpdating, startTransition] = useTransition()
+  const [isUpdating, startTransition] = useTransition()
 
   const isOwner = useOwner()
 
   useEffect(() => {
-    if (data ) {
+    if (data?.title) {
       setInput(data.title)
     }
   }, [data])
@@ -30,13 +33,16 @@ function Document({id}:  {id: string}) {
   const updateTitle = (e: FormEvent) => {
     e.preventDefault()
 
-    if (input.trim()) (
+    if (input.trim()) {
       startTransition(async () => {
-        await updateDoc(doc(db, 'documents', id), {
-          title: input
-        })
+        const res = await updateDocumentTitle(id, input.trim())
+        if (res.success) {
+          toast.success("Document title updated!")
+        } else {
+          toast.error(res.error || "Failed to update title")
+        }
       })
-    )
+    }
   }
 
   return (

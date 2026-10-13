@@ -1,3 +1,4 @@
+import "@/lib/nodePolyfill";
 import { initializeApp, getApps, getApp, App, cert } from "firebase-admin/app";
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';

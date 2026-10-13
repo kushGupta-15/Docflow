@@ -57,6 +57,60 @@ export async function createNewDocument(initialTitle: string = 'New Doc') {
   return { docId: docRef.id }
 }
 
+export async function updateDocumentTitle(docId: string, title: string) {
+  auth().protect()
+
+  const { sessionClaims } = await auth()
+  const userEmail = sessionClaims?.email;
+  if (!userEmail) {
+    return { success: false, error: "Unauthorized: User not authenticated" }
+  }
+
+  if (!docId || typeof docId !== 'string') {
+    return { success: false, error: "Invalid document ID" }
+  }
+
+  const cleanTitle = title?.trim();
+  if (!cleanTitle) {
+    return { success: false, error: "Title cannot be empty" }
+  }
+
+  try {
+    const adminDb = getAdminDb();
+    const docRef = adminDb.collection('documents').doc(docId);
+    const docSnapshot = await docRef.get();
+
+    if (!docSnapshot.exists) {
+      return { success: false, error: "Document not found" }
+    }
+
+    // Check membership or ownership
+    const callerRoomDoc = await adminDb
+      .collection('users')
+      .doc(userEmail)
+      .collection('rooms')
+      .doc(docId)
+      .get();
+
+    const role = callerRoomDoc.data()?.role;
+    const isAllowed = callerRoomDoc.exists && (role === 'owner' || role === 'editor');
+    const isDocOwner = docSnapshot.data()?.ownerId === userEmail;
+
+    if (!isAllowed && !isDocOwner) {
+      return { success: false, error: "Forbidden: You do not have edit permission for this document" }
+    }
+
+    await docRef.update({
+      title: cleanTitle
+    });
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('Failed to update document title:', err);
+    return { success: false, error: err.message || "Failed to update title" }
+  }
+}
+
 export async function deleteDocument(roomId: string) {
   auth().protect()
 
