@@ -9,10 +9,11 @@ export async function createNewDocument(initialTitle: string = 'New Doc') {
   auth().protect()
 
   const { sessionClaims } = await auth()
-  const userEmail = sessionClaims?.email;
-  if (!userEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     throw new Error('User email not found in session');
   }
+  const userEmail = rawEmail.trim().toLowerCase();
 
   console.log('Creating document for user:', userEmail);
 
@@ -61,10 +62,11 @@ export async function updateDocumentTitle(docId: string, title: string) {
   auth().protect()
 
   const { sessionClaims } = await auth()
-  const userEmail = sessionClaims?.email;
-  if (!userEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     return { success: false, error: "Unauthorized: User not authenticated" }
   }
+  const userEmail = rawEmail.trim().toLowerCase();
 
   if (!docId || typeof docId !== 'string') {
     return { success: false, error: "Invalid document ID" }
@@ -94,7 +96,7 @@ export async function updateDocumentTitle(docId: string, title: string) {
 
     const role = callerRoomDoc.data()?.role;
     const isAllowed = callerRoomDoc.exists && (role === 'owner' || role === 'editor');
-    const isDocOwner = docSnapshot.data()?.ownerId === userEmail;
+    const isDocOwner = docSnapshot.data()?.ownerId?.toLowerCase() === userEmail;
 
     if (!isAllowed && !isDocOwner) {
       return { success: false, error: "Forbidden: You do not have edit permission for this document" }
@@ -115,10 +117,11 @@ export async function deleteDocument(roomId: string) {
   auth().protect()
 
   const { sessionClaims } = await auth()
-  const userEmail = sessionClaims?.email;
-  if (!userEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     return { success: false, error: "Unauthorized: User not authenticated" }
   }
+  const userEmail = rawEmail.trim().toLowerCase();
 
   if (!roomId || typeof roomId !== 'string') {
     return { success: false, error: "Invalid document ID" }
@@ -143,7 +146,7 @@ export async function deleteDocument(roomId: string) {
       .get();
 
     const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
-                    (roomDoc.data()?.ownerId === userEmail);
+                    (roomDoc.data()?.ownerId?.toLowerCase() === userEmail);
 
     if (!isOwner) {
       console.warn(`User ${userEmail} attempted unauthorized deletion of room ${roomId}`);
@@ -158,7 +161,7 @@ export async function deleteDocument(roomId: string) {
     const batch = adminDb.batch();
     docUsersSnapshot.docs.forEach((doc: any) => {
       batch.delete(doc.ref);
-      const memberEmail = doc.data()?.email || doc.id;
+      const memberEmail = (doc.data()?.email || doc.id)?.trim().toLowerCase();
       if (memberEmail) {
         batch.delete(adminDb.collection('users').doc(memberEmail).collection('rooms').doc(roomId));
       }
@@ -201,10 +204,11 @@ export async function inviteUserToRoom(
   auth().protect()
 
   const { sessionClaims } = await auth()
-  const callerEmail = sessionClaims?.email;
-  if (!callerEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     return { success: false, error: "Unauthorized: User not authenticated" }
   }
+  const callerEmail = rawEmail.trim().toLowerCase();
 
   if (!roomId || typeof roomId !== 'string') {
     return { success: false, error: "Invalid document ID" }
@@ -239,7 +243,7 @@ export async function inviteUserToRoom(
       .get();
 
     const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
-                    (roomDoc.data()?.ownerId === callerEmail);
+                    (roomDoc.data()?.ownerId?.toLowerCase() === callerEmail);
 
     if (!isOwner) {
       console.warn(`User ${callerEmail} attempted unauthorized invitation to room ${roomId}`);
@@ -279,10 +283,11 @@ export async function removeUserFromRoom(roomId: string, targetEmail: string) {
   auth().protect();
 
   const { sessionClaims } = await auth();
-  const callerEmail = sessionClaims?.email;
-  if (!callerEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     return { success: false, error: "Unauthorized" };
   }
+  const callerEmail = rawEmail.trim().toLowerCase();
 
   if (!roomId || !targetEmail) {
     return { success: false, error: "Invalid document ID or email" };
@@ -308,13 +313,13 @@ export async function removeUserFromRoom(roomId: string, targetEmail: string) {
       .get();
 
     const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
-                    (roomDoc.data()?.ownerId === callerEmail);
+                    (roomDoc.data()?.ownerId?.toLowerCase() === callerEmail);
 
     if (!isOwner) {
       return { success: false, error: "Forbidden: Only the owner can remove members" };
     }
 
-    if (callerEmail.toLowerCase() === normalizedTargetEmail) {
+    if (callerEmail === normalizedTargetEmail) {
       return { success: false, error: "The document owner cannot be removed" };
     }
 
@@ -340,10 +345,11 @@ export async function getRoomUsers(roomId: string) {
   auth().protect();
 
   const { sessionClaims } = await auth();
-  const callerEmail = sessionClaims?.email;
-  if (!callerEmail) {
+  const rawEmail = sessionClaims?.email;
+  if (!rawEmail) {
     return { success: false, users: [], error: "Unauthorized" };
   }
+  const callerEmail = rawEmail.trim().toLowerCase();
 
   if (!roomId) {
     return { success: false, users: [], error: "Room ID required" };
@@ -367,16 +373,17 @@ export async function getRoomUsers(roomId: string) {
     }> = [];
 
     // Also include document owner if not explicitly in subcollection
-    const ownerId = roomDoc.data()?.ownerId;
+    const ownerId = roomDoc.data()?.ownerId?.toLowerCase();
     let ownerIncluded = false;
 
     usersSnapshot.docs.forEach((doc: any) => {
       const data = doc.data();
-      if (data.email === ownerId) ownerIncluded = true;
+      const memberEmail = (data.email || doc.id)?.trim().toLowerCase();
+      if (memberEmail === ownerId) ownerIncluded = true;
       users.push({
-        email: data.email || doc.id,
+        email: memberEmail,
         role: data.role || 'editor',
-        invitedBy: data.invitedBy,
+        invitedBy: data.invitedBy?.trim().toLowerCase(),
       });
     });
 

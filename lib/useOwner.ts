@@ -10,7 +10,7 @@ function useOwner() {
   const room = useRoom();
   const [isOwner, setIsOwner] = useState(false);
 
-  const userEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase();
+  const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase();
 
   // 1. Direct lookup in users/{userEmail}/rooms/{roomId}
   const userRoomDocRef = useMemo(() => {
@@ -32,11 +32,11 @@ function useOwner() {
     }
 
     const isDocOwner =
-      documentData?.ownerId?.toLowerCase() === userEmail;
+      documentData?.ownerId?.trim().toLowerCase() === userEmail;
 
     const isRoomOwner =
       userRoomData?.role === "owner" ||
-      (userRoomData?.userId?.toLowerCase() === userEmail && userRoomData?.role === "owner");
+      (userRoomData?.userId?.trim().toLowerCase() === userEmail && userRoomData?.role === "owner");
 
     setIsOwner(Boolean(isDocOwner || isRoomOwner));
   }, [userEmail, documentData, userRoomData]);

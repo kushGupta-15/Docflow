@@ -34,7 +34,7 @@ function ManageUsers() {
   const roomId = pathname.split('/').pop()
   const isOwner = useOwner()
   const { user } = useUser()
-  const currentUserEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase()
+  const currentUserEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase()
 
   const loadMembers = useCallback(async () => {
     if (!roomId) return
@@ -73,12 +73,12 @@ function ManageUsers() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <Button asChild variant="outline" className="flex items-center gap-1.5">
-        <DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="outline" type="button" className="flex items-center gap-1.5">
           <UsersIcon className="w-4 h-4" />
           <span>Members</span>
-        </DialogTrigger>
-      </Button>
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

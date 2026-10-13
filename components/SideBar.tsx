@@ -25,7 +25,7 @@ interface RoomDocument extends DocumentData {
 }
 
 function SideBar() {
-  const {user} = useUser() //from clerk
+  const { user } = useUser() //from clerk
   const [groupedData, setGroupedData] = useState<{
     owner: RoomDocument[];
     editor: RoomDocument[];
@@ -34,28 +34,20 @@ function SideBar() {
     editor: [],
   })
 
-  // Try a more direct approach - query the user's rooms collection directly
+  const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase()
+
+  // Query the user's rooms collection directly with normalized lowercase email
   const [data, loading, error] = useCollection(
-    user && user.emailAddresses[0]?.emailAddress ?
+    userEmail ?
       query(
-        collection(db, 'users', user.emailAddresses[0].emailAddress, 'rooms')
+        collection(db, 'users', userEmail, 'rooms')
       ) : null
   )
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Sidebar data:', data?.docs.length, 'documents');
-    console.log('Loading:', loading);
-    console.log('Error:', error);
-    if (data) {
-      console.log('Raw data:', data.docs.map(doc => ({ id: doc.id, data: doc.data() })));
-    }
-  }, [data, loading, error])
 
   useEffect(() => {
     if (!data) return
 
-    const grouped = data.docs.reduce<{ //accumulator function
+    const grouped = data.docs.reduce<{
       owner: RoomDocument[];
       editor: RoomDocument[];
     }>(
@@ -82,7 +74,6 @@ function SideBar() {
     )
 
     setGroupedData(grouped)
-
   }, [data])
 
 

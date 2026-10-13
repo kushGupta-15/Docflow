@@ -124,7 +124,7 @@ function Dashboard() {
   const [filter, setFilter] = useState<'all' | 'owner' | 'editor' | 'viewer'>('all')
   const [isCreating, startCreating] = useTransition()
 
-  const userEmail = user?.emailAddresses?.[0]?.emailAddress
+  const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase()
   const firstName = user?.firstName || userEmail?.split('@')[0] || 'User'
 
   const [roomsSnapshot, loadingRooms] = useCollection(

@@ -49,9 +49,9 @@ function InviteUser() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <Button asChild variant='outline'>
-        <DialogTrigger>Invite</DialogTrigger>
-      </Button>
+      <DialogTrigger asChild>
+        <Button variant='outline' type="button">Invite</Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite User to Room</DialogTitle>

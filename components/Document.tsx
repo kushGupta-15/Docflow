@@ -26,10 +26,10 @@ function Document({id}:  {id: string}) {
   const { user } = useUser()
   const isOwnerHook = useOwner()
 
-  const currentUserEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase()
+  const currentUserEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase()
   const isOwner = Boolean(
     isOwnerHook ||
-    (data?.ownerId && currentUserEmail && data.ownerId.toLowerCase() === currentUserEmail)
+    (data?.ownerId && currentUserEmail && data.ownerId.trim().toLowerCase() === currentUserEmail)
   )
 
   useEffect(() => {
@@ -55,28 +55,27 @@ function Document({id}:  {id: string}) {
 
   return (
     <div className="flex-1 h-full bg-white">
-      <div className="flex max-w-6xl mx-auto justify-between p-5">
-        <form className="flex space-x-2 flex-1" onSubmit={updateTitle}>
+      <div className="flex flex-col sm:flex-row max-w-6xl mx-auto justify-between items-center gap-3 p-5">
+        <form className="flex space-x-2 flex-1 w-full" onSubmit={updateTitle}>
           {/* Update title */}
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            placeholder="Document title"
           />
 
-          <Button disabled={isUpdating} type="submit" >
+          <Button disabled={isUpdating} type="submit">
             {isUpdating ? 'Updating' : 'Update'}
           </Button>
-
-          {/* If owner render invite user flow */}
-          { isOwner && (
-            <>
-            {/* Invite user */}
-              <InviteUser />
-            {/* Delete document */}
-              <DeleteDocument />
-            </>
-          )}
         </form>
+
+        {/* If owner, render invite and delete actions OUTSIDE the title form */}
+        {isOwner && (
+          <div className="flex items-center space-x-2 shrink-0">
+            <InviteUser />
+            <DeleteDocument />
+          </div>
+        )}
       </div>
       <div className="flex max-w-6xl mx-auto justify-between items-center px-5 pb-4">
         {/* Manage User */}

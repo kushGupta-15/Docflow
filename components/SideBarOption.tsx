@@ -6,14 +6,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDocumentData } from "react-firebase-hooks/firestore";
 
+import { useMemo } from "react";
+
 interface SideBarOptionProps {
   href: string;
   id: string;
 }
 
 function SideBarOption({ href, id }: SideBarOptionProps) {
-  // Create the document reference inside the component
-  const docRef = doc(db, 'documents', id);
+  // Memoize the document reference to prevent unnecessary hook re-subscriptions
+  const docRef = useMemo(() => doc(db, 'documents', id), [id]);
 
   // Fetch the document data
   const [data, loading, error] = useDocumentData(docRef);
@@ -22,24 +24,21 @@ function SideBarOption({ href, id }: SideBarOptionProps) {
   const pathName = usePathname();
 
   // Check if the link is active
-  const isActive = href.includes(pathName) && pathName !== '/';
+  const isActive = href === pathName || (pathName !== '/' && href.endsWith(pathName));
 
-  // Handle loading state
-  if (loading) return <p>Loading...</p>;
-
-  // Handle error state
-  if (error) return <p>Error loading document</p>;
-
-  // Ensure data is available
-  if (!data) return null;
+  const title = data?.title || (loading ? "Loading..." : error ? "Document" : "Untitled Document");
 
   return (
     <Link
       href={href}
-      className={`border p-2 rounded-md ${isActive ? 'text-gray-500 font-bold border-black text-sm' : 'border-gray-400 text-sm'}`}
+      className={`block border p-2 rounded-md transition-colors ${
+        isActive
+          ? 'text-gray-900 font-bold border-gray-900 bg-white shadow-xs text-sm'
+          : 'border-gray-300 hover:border-gray-500 hover:bg-gray-100/60 text-gray-700 text-sm'
+      }`}
     >
       <p className="truncate">
-        {data.title}
+        {title}
       </p>
     </Link>
   );

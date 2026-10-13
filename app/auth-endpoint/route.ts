@@ -7,11 +7,12 @@ export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate the user session
     const { sessionClaims } = await auth().protect();
-    const userEmail = sessionClaims?.email;
+    const rawEmail = sessionClaims?.email;
 
-    if (!userEmail) {
+    if (!rawEmail) {
       return NextResponse.json({ error: "Unauthorized: User email not found" }, { status: 401 });
     }
+    const userEmail = rawEmail.trim().toLowerCase();
 
     // 2. Extract requested room ID
     const body = await req.json();
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
       roomRef.collection("users").doc(userEmail).get(),
     ]);
 
-    const isDocumentOwner = roomDoc.data()?.ownerId === userEmail;
+    const isDocumentOwner = roomDoc.data()?.ownerId?.toLowerCase() === userEmail;
 
     let role: string | null = null;
     if (isDocumentOwner || userRoomDoc.data()?.role === "owner" || userInRoomDoc.data()?.role === "owner") {

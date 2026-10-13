@@ -46,9 +46,9 @@ function DeleteDocument() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <Button asChild variant='destructive'>
-        <DialogTrigger>Delete</DialogTrigger>
-      </Button>
+      <DialogTrigger asChild>
+        <Button variant='destructive' type="button">Delete</Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Are you absolutely sure you want to delete?</DialogTitle>
