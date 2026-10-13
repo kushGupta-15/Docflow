@@ -153,18 +153,29 @@ export async function deleteDocument(roomId: string) {
     // Delete the document itself
     await roomRef.delete();
 
-    // Batch delete room users in documents/{roomId}/users
+    // Batch delete room users in documents/{roomId}/users and their corresponding user room records
     const docUsersSnapshot = await roomRef.collection('users').get();
     const batch = adminDb.batch();
     docUsersSnapshot.docs.forEach((doc: any) => {
       batch.delete(doc.ref);
+      const memberEmail = doc.data()?.email || doc.id;
+      if (memberEmail) {
+        batch.delete(adminDb.collection('users').doc(memberEmail).collection('rooms').doc(roomId));
+      }
     });
 
-    // Delete room reference across all users
-    const query = await adminDb.collectionGroup('rooms').where('roomId', '==', roomId).get();
-    query.docs.forEach((doc: any) => {
-      batch.delete(doc.ref);
-    });
+    // Also delete owner's room reference
+    batch.delete(adminDb.collection('users').doc(userEmail).collection('rooms').doc(roomId));
+
+    // Best-effort cleanup for any remaining references if collectionGroup is indexed
+    try {
+      const query = await adminDb.collectionGroup('rooms').where('roomId', '==', roomId).get();
+      query.docs.forEach((doc: any) => {
+        batch.delete(doc.ref);
+      });
+    } catch {
+      // Non-fatal if collection group index is not configured
+    }
 
     await batch.commit();
 

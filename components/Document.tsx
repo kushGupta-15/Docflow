@@ -14,6 +14,7 @@ import ManageUsers from "./ManageUsers"
 import Avatars from "./Avatars"
 import { updateDocumentTitle } from "@/actions/actions"
 import { toast } from "sonner"
+import { useUser } from "@clerk/nextjs"
 
 function Document({id}:  {id: string}) {
   const docRef = useMemo(() => doc(db, 'documents', id), [id])
@@ -22,7 +23,14 @@ function Document({id}:  {id: string}) {
   const [input, setInput] = useState('')
   const [isUpdating, startTransition] = useTransition()
 
-  const isOwner = useOwner()
+  const { user } = useUser()
+  const isOwnerHook = useOwner()
+
+  const currentUserEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase()
+  const isOwner = Boolean(
+    isOwnerHook ||
+    (data?.ownerId && currentUserEmail && data.ownerId.toLowerCase() === currentUserEmail)
+  )
 
   useEffect(() => {
     if (data?.title) {
