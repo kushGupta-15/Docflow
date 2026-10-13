@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
         name: sessionClaims.fullName || userEmail.split("@")[0],
         email: userEmail,
         avatar: sessionClaims.image ?? "",
+        role: role,
       },
     });
 

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import * as Y from 'yjs';
 import { LiveblocksYjsProvider } from '@liveblocks/yjs';
 import { Button } from './ui/button';
-import { MoonIcon, SunIcon } from 'lucide-react';
+import { MoonIcon, SunIcon, LockIcon } from 'lucide-react';
 import { BlockNoteView } from "@blocknote/shadcn";
 import { BlockNoteEditor } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -12,15 +12,17 @@ import '@blocknote/core/fonts/inter.css'
 import '@blocknote/shadcn/style.css'
 import stringToColor from '@/lib/stringToColor';
 import AIAssistant from './AIAssistant';
+import { useDocRole } from '@/lib/useOwner';
 
 type EditorProps = {
   doc: Y.Doc;
   provider: any;
-  darkMode: boolean
+  darkMode: boolean;
+  canEdit?: boolean;
 }
 
 
-function BlockNote({doc, provider, darkMode}: EditorProps) {
+function BlockNote({doc, provider, darkMode, canEdit = true}: EditorProps) {
   const userInfo = useSelf((me) => me.info) //liveblocks hook
 
   const userName = userInfo?.name || userInfo?.email?.split('@')[0] || 'Anonymous';
@@ -41,10 +43,10 @@ function BlockNote({doc, provider, darkMode}: EditorProps) {
   return (
     <div className='relative max-w-6xl mx-auto'>
       <BlockNoteView
-      className='min-h-screen'
-      editor={editor}
-      theme={darkMode ? 'dark' : 'light'}
-
+        className='min-h-screen'
+        editor={editor}
+        theme={darkMode ? 'dark' : 'light'}
+        editable={canEdit}
       />
     </div>
   )
@@ -57,6 +59,7 @@ function Editor() {
   const [doc, setDoc] = useState<Y.Doc>()
   const [provider, setProvider] = useState<LiveblocksYjsProvider>() //connect Yjs to Liveblocks
   const [darkMode, setDarkMode] = useState(false)
+  const { canEdit } = useDocRole()
 
   useEffect(() => {
     const yDoc = new Y.Doc()
@@ -83,6 +86,15 @@ function Editor() {
 
   return (
     <div className='max-w-6xl mx-auto'>
+      {!canEdit && (
+        <div className="flex items-center gap-2.5 p-3.5 mb-6 text-sm text-amber-900 bg-amber-50/90 border border-amber-200 rounded-xl shadow-xs">
+          <LockIcon className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            <strong>Read-Only Mode:</strong> You have viewer permissions on this document. Text editing, block alterations, and slash commands are locked.
+          </span>
+        </div>
+      )}
+
       <div className='flex items-center gap-2 justify-end mb-10'>
         {/* Gemini AI Assistant */}
         <AIAssistant doc={doc} />
@@ -93,7 +105,7 @@ function Editor() {
         </Button>
       </div>
       {/* Blocknote */}
-      <BlockNote doc={doc} provider={provider} darkMode={darkMode}/>
+      <BlockNote doc={doc} provider={provider} darkMode={darkMode} canEdit={canEdit} />
 
     </div>
   )

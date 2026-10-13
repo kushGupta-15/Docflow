@@ -7,7 +7,7 @@ import { doc } from "firebase/firestore"
 import { db } from "@/firebase"
 import { useDocumentData } from "react-firebase-hooks/firestore"
 import Editor from "./Editor"
-import useOwner from "../lib/useOwner"
+import useOwner, { useDocRole } from "../lib/useOwner"
 import DeleteDocument from "./DeleteDocument"
 import InviteUser from "./InviteUser"
 import ManageUsers from "./ManageUsers"
@@ -24,13 +24,15 @@ function Document({id}:  {id: string}) {
   const [isUpdating, startTransition] = useTransition()
 
   const { user } = useUser()
-  const isOwnerHook = useOwner()
+  const { isOwner: isRoleOwner, isViewer, canEdit: canRoleEdit } = useDocRole()
 
   const currentUserEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress)?.trim().toLowerCase()
   const isOwner = Boolean(
-    isOwnerHook ||
+    isRoleOwner ||
     (data?.ownerId && currentUserEmail && data.ownerId.trim().toLowerCase() === currentUserEmail)
   )
+
+  const canEdit = !isViewer && (isOwner || canRoleEdit);
 
   useEffect(() => {
     if (data?.title) {
@@ -40,6 +42,11 @@ function Document({id}:  {id: string}) {
 
   const updateTitle = (e: FormEvent) => {
     e.preventDefault()
+
+    if (!canEdit) {
+      toast.error("You have view-only permissions on this document.")
+      return
+    }
 
     if (input.trim()) {
       startTransition(async () => {
@@ -62,11 +69,19 @@ function Document({id}:  {id: string}) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Document title"
+            disabled={!canEdit}
+            className={!canEdit ? "bg-gray-100 text-gray-500 cursor-not-allowed select-none" : ""}
           />
 
-          <Button disabled={isUpdating} type="submit">
-            {isUpdating ? 'Updating' : 'Update'}
-          </Button>
+          {canEdit ? (
+            <Button disabled={isUpdating} type="submit">
+              {isUpdating ? 'Updating' : 'Update'}
+            </Button>
+          ) : (
+            <span className="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold whitespace-nowrap">
+              Viewer (Read Only)
+            </span>
+          )}
         </form>
 
         {/* If owner, render invite and delete actions OUTSIDE the title form */}
