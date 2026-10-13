@@ -1,4 +1,6 @@
-function stringToColor(str: string) {
+function stringToColor(str?: string | null) {
+  if (!str) return "#3b82f6";
+
   let hash = 0
 
   for (let i = 0; i < str.length; i++) {
@@ -7,7 +9,6 @@ function stringToColor(str: string) {
 
   const c = (hash & 0x00ffffff).toString(16).toUpperCase();
   return "#" + "00000".substring(0,6 - c.length) + c
-
 }
 
 export default stringToColor

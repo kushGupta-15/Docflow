@@ -63,9 +63,9 @@ function FollowPointer({
           scale: 0.5,
           opacity: 0,
         }}
-        className='"px-2 py-2 bg-neutral-200 text-black font-bold whitespace-nowrap min-w-max text-xs rounded-full"'
+        className="px-2 py-2 bg-neutral-200 text-black font-bold whitespace-nowrap min-w-max text-xs rounded-full"
       >
-        {info.name || info.email}
+        {info?.name || info?.email || "Collaborator"}
       </motion.div>
     </motion.div>
   )

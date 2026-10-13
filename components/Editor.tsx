@@ -20,8 +20,11 @@ type EditorProps = {
 
 
 function BlockNote({doc, provider, darkMode}: EditorProps) {
-
   const userInfo = useSelf((me) => me.info) //liveblocks hook
+
+  const userName = userInfo?.name || userInfo?.email?.split('@')[0] || 'Anonymous';
+  const userColor = stringToColor(userInfo?.email || 'anonymous');
+
   const editor: BlockNoteEditor = useCreateBlockNote({
     collaboration: {
       provider,
@@ -29,8 +32,8 @@ function BlockNote({doc, provider, darkMode}: EditorProps) {
       fragment: doc.getXmlFragment('document-store'),
 
       user: {
-        name: userInfo?.name,
-        color: stringToColor(userInfo?.email)
+        name: userName,
+        color: userColor
       }
     }
   })

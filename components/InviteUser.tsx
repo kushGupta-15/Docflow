@@ -54,9 +54,9 @@ function InviteUser() {
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite Collaborator</DialogTitle>
+          <DialogTitle>Invite User to Room</DialogTitle>
           <DialogDescription>
-            Invite another user to access this document via email.
+            Invite a user to collaborate on this document via email.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleInvite} className="flex flex-col gap-3">
