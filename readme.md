@@ -1,120 +1,160 @@
-# DocFlow - Collaborative Document Editor & Workspace
+<div align="center">
 
-A modern, real-time collaborative document editing application and workspace built with Next.js 14, inspired by Notion. Create, edit, collaborate, and leverage Google Gemini AI to summarize, polish, and translate your documents in real time.
+# 📄 DocFlow
+
+### Enterprise-Grade Collaborative Workspace & Document Editor
+
+[![Next.js 14](https://img.shields.io/badge/Next.js-14.2.5-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React 18](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Liveblocks](https://img.shields.io/badge/Liveblocks-Real--Time-red?style=for-the-badge&logo=liveblocks&logoColor=white)](https://liveblocks.io/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
+[![Clerk Auth](https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white)](https://clerk.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+<p align="center">
+  A fast, secure, Notion-inspired collaborative document editor. Built with Next.js 14 App Router, Yjs CRDTs, Liveblocks multi-user presence, Cloud Firestore, Clerk authentication, and Google Gemini AI document intelligence.
+</p>
+
+[Explore Architecture](#-system-architecture) • [Key Features](#-key-features) • [Quick Start](#-getting-started) • [Security & RBAC](#-security--authorization) • [Deployment](#-deployment)
 
 ---
 
-## ✨ Features
+</div>
 
-### 🚀 Workspace Dashboard & Templates
-- **Interactive Template Gallery**: Instant document scaffolding with pre-built templates:
-  - 📝 **Blank Document** - Start fresh with an open canvas.
-  - 📋 **Meeting Notes** - Structured agendas, discussion points, action items, and attendee tracking.
-  - 🗺️ **Project Roadmap** - Vision milestones, quarterly goals, deliverables, and risk logs.
-  - 🏃 **Sprint Backlog** - Sprint goals, user stories, task estimations, and blocker management.
-  - 💡 **Brainstorming Canvas** - Problem framing, creative idea dumps, and voting criteria.
-- **Recent Documents Grid**: Quick-access document list with real-time room cards, timestamp formatting, and instant role filtering (**All**, **Owner**, **Editor**, **Viewer**).
+## 📖 Overview
+
+**DocFlow** is a modern document editing environment engineered for seamless real-time teamwork. Combining the power of block-based rich text editing with conflict-free concurrent synchronization (CRDTs), live multi-cursor presence, and built-in AI document intelligence, DocFlow transforms traditional document authoring into an intuitive and interactive workspace.
+
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Client["Client Tier (Browser)"]
+        UI["Next.js 14 App Router UI"]
+        BlockNote["BlockNote Rich Text Editor (Yjs CRDT)"]
+        Avatars["Liveblocks Presence & Avatars"]
+        AIAssistant["Gemini AI Assistant Modal"]
+    end
+
+    subgraph AuthTier["Authentication & Identity"]
+        Clerk["Clerk Authentication (OAuth / JWT)"]
+    end
+
+    subgraph AppServer["Next.js Server Tier"]
+        ServerActions["Server Actions (actions.ts)"]
+        AuthEndpoint["Auth Endpoint (/app/auth-endpoint)"]
+        GeminiService["Gemini AI Gateway (geminiActions.ts)"]
+    end
+
+    subgraph RealTimeTier["Real-Time Engine"]
+        LiveblocksCloud["Liveblocks Cloud (Rooms, Presence, Storage)"]
+    end
+
+    subgraph DatabaseTier["Database & Cloud Services"]
+        Firestore["Google Cloud Firestore (Documents & Rooms)"]
+        FirebaseAdmin["Firebase Admin SDK"]
+        GeminiAPI["Google Gemini 2.5 Flash API"]
+    end
+
+    UI --> Clerk
+    UI --> BlockNote
+    UI --> Avatars
+    UI --> AIAssistant
+
+    BlockNote <-->|"Yjs WebSockets"| LiveblocksCloud
+    Avatars <-->|"Presence WebSockets"| LiveblocksCloud
+
+    UI -->|"Mutations & RPC"| ServerActions
+    Avatars -->|"Authorize Room Token"| AuthEndpoint
+    AIAssistant -->|"Process Document Text"| GeminiService
+
+    AuthEndpoint -->|"Validate Role"| FirebaseAdmin
+    AuthEndpoint -->|"Issue Session Token"| LiveblocksCloud
+
+    ServerActions -->|"Privileged CRUD"| FirebaseAdmin
+    FirebaseAdmin -->|"Read / Write Records"| Firestore
+    UI <-->|"Realtime Snapshot Listeners"| Firestore
+
+    GeminiService -->|"REST API Calls"| GeminiAPI
+```
+
+---
+
+## ✨ Key Features
+
+### 🚀 Workspace Dashboard & Scaffolding
+- **Curated Template Gallery**: Kickstart new docs in one click with pre-formatted structures:
+  - 📝 **Blank Document** — Minimalist open canvas.
+  - 📋 **Meeting Notes** — Agendas, attendee logs, discussion notes, and action items.
+  - 🗺️ **Project Roadmap** — Vision, key milestones, deliverables, and risk matrices.
+  - 🏃 **Sprint Backlog** — Sprint goals, user stories, estimations, and blocker tracking.
+  - 💡 **Brainstorming Canvas** — Problem framing, creative idea dumps, and voting criteria.
+- **Recent Documents Grid**: Quick-access document cards featuring real-time room names, relative timestamps, and one-click role filtering (**All**, **Created by Me**, **Can Edit**, **Read Only**).
 
 ### 👥 Real-Time Collaboration & Member Management
-- **Live Cursors & Typing**: Real-time collaborative block editing powered by Liveblocks and Yjs CRDTs.
-- **Presence Avatar Stack**: Dynamic avatar rings showing actively connected users viewing and editing the document in real time.
-- **Collaborator Management**: Interactive member dialog displaying all invited users, roles, and timestamps.
-- **Role-Based Access Control (RBAC)**:
-  - 👑 **Owner**: Full administrative control, ability to invite users, modify permissions, remove collaborators, and permanently delete the document.
-  - ✏️ **Editor**: Full read and write editing capabilities in the document workspace.
-  - 👁️ **Viewer**: Read-only observation access to prevent unauthorized content modifications.
+- **Concurrent Block Editing**: Conflict-free collaborative text editing powered by **Liveblocks** and **Yjs** CRDTs.
+- **Live Presence Avatars**: Floating avatar stack in the document header showing actively connected teammates with online status indicators and tooltips.
+- **Collaborator Management Modal**: View all active members, inspect their roles, and revoke collaborator access with one click (owner-only).
+- **Three-Tier Role-Based Access Control (RBAC)**:
+  - 👑 **Owner**: Full administrative control, user invitations, role modifications, and permanent deletion.
+  - ✏️ **Editor**: Full read and write capabilities across document content and titles.
+  - 👁️ **Viewer**: Read-only observation access preventing unauthorized alterations.
 
 ### 🤖 Gemini AI Document Intelligence
-- **Document Summarization**: Extracts key takeaways, highlights, and structural summaries from active document content using Google Gemini.
-- **Grammar & Tone Refinement**: Analyzes document clarity, polishes sentence structure, and enhances professional phrasing.
-- **Multi-Language Translation**: Translates text across 11 languages (Spanish, French, German, Japanese, Chinese, Hindi, Portuguese, Italian, Russian, Arabic, and Korean).
-- **One-Click Clipboard Export**: Copy AI results directly to clipboard or review suggestions side-by-side.
-- **Zero-Dependency Native Integration**: Direct REST API integration with graceful mock fallbacks when API keys are unconfigured.
+- **Document Summarization**: Instantly generates an executive summary, core takeaways, and action items from live document content.
+- **Grammar & Tone Refinement**: Polishes sentence structure, clarity, and professional style while preserving original meaning.
+- **Multi-Language Translation**: Real-time translation supporting **11 languages** (*Spanish, French, German, Japanese, Chinese, Hindi, Portuguese, Italian, Russian, Arabic, Korean*).
+- **One-Click Export**: Copy polished AI outputs directly to your clipboard or review suggestions side-by-side.
 
-### 🛡️ Production-Grade Security
-- **BOLA Vulnerability Prevention**: Server-side authorization checks on all document mutation actions (`deleteDocument`, `inviteUserToRoom`, `removeUserFromRoom`).
-- **Liveblocks Auth Hardening**: Locked-down room token endpoint (`/auth-endpoint`) validating explicit user room membership before granting room tokens.
-- **Firestore Security Rules**: Declarative security rules (`firestore.rules`) enforcing document ownership and collaborator subcollection isolation.
-- **Zero Hardcoded Secrets**: Fully environment-variable-driven Firebase and AI configuration.
+### 🛡️ Hardened Security Architecture
+- **Broken Object Level Authorization (BOLA) Protection**: Server-side permission validation on all sensitive actions (`deleteDocument`, `inviteUserToRoom`, `removeUserFromRoom`, `updateDocumentTitle`).
+- **Liveblocks Token Lockdown**: The `/app/auth-endpoint` verifies explicit membership in Cloud Firestore before issuing room access tokens.
+- **Production-Grade Firestore Rules**: Granular database security rules enforcing document isolation and role boundaries.
+- **Node 26 Compatibility**: Hardened server runtime with automated polyfills for legacy cryptographic libraries.
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend & UI
-- **Next.js 14** (App Router, Server Actions)
-- **React 18** & **TypeScript**
-- **Tailwind CSS** - Utility-first styling
-- **Shadcn/ui & Radix UI** - Accessible UI components
-- **Lucide React** - Modern iconography
-- **Sonner** - Toast notifications
-
-### Real-Time & Rich Text
-- **Liveblocks** - Real-time presence, storage, and room coordination
-- **Yjs** - Conflict-free Replicated Data Types (CRDT) for concurrent editing
-- **BlockNote** - Notion-style block-based rich text editor
-
-### Backend & Cloud Services
-- **Firebase / Cloud Firestore** - Cloud database for room metadata and user permissions
-- **Firebase Admin SDK** - Privileged server-side mutations and role validation
-- **Clerk** - Authentication, user session management, and OAuth
-- **Google Gemini API** (`gemini-2.5-flash`) - AI summarization, refinement, and translation
-
----
-
-## 📋 Prerequisites
-
-Before getting started, make sure you have:
-- **Node.js**: v18.0.0 or higher (v20+ recommended)
-- **npm** or **yarn** / **pnpm**
-- A **Clerk** account ([clerk.com](https://clerk.com))
-- A **Liveblocks** account ([liveblocks.io](https://liveblocks.io))
-- A **Firebase** project with Firestore enabled ([console.firebase.google.com](https://console.firebase.google.com))
-- *(Optional)* A **Google Gemini API Key** ([aistudio.google.com](https://aistudio.google.com))
-
----
-
-## ⚙️ Environment Configuration
-
-Create a `.env` (or `.env.local`) file in the root directory and configure the following variables:
-
-```env
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_key_here
-CLERK_SECRET_KEY=sk_test_your_clerk_secret_here
-
-# Liveblocks Real-Time Collaboration
-NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY=pk_dev_your_liveblocks_key_here
-LIVEBLOCKS_PRIVATE_KEY=sk_dev_your_liveblocks_private_key_here
-
-# Firebase Client Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-
-# Application URL
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-
-# Google Gemini AI (Optional - falls back to built-in simulation if unconfigured)
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-### Firebase Service Account Setup
-Download your Firebase Admin SDK service account key from **Project Settings > Service Accounts** in the Firebase Console and place it in the root directory as `service_key.json`:
-```
-service_key.json
-```
+| Domain | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | [Next.js 14](https://nextjs.org/) | App Router, Server Actions, React Server Components |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) | Type-safe development across client and server |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) & [Shadcn UI](https://ui.shadcn.com/) | Responsive, modern, and accessible design system |
+| **Rich Text Editor** | [BlockNote](https://www.blocknotejs.org/) | Notion-like block-based editing |
+| **Real-Time Sync** | [Liveblocks](https://liveblocks.io/) & [Yjs](https://yjs.dev/) | WebSockets, CRDTs, presence avatars, multi-cursor tracking |
+| **Database** | [Google Cloud Firestore](https://firebase.google.com/docs/firestore) | Real-time NoSQL document & room metadata storage |
+| **Admin Operations** | [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) | Privileged server-side mutations and role validation |
+| **Authentication** | [Clerk](https://clerk.com/) | OAuth login, session tokens, user profile management |
+| **Artificial Intelligence** | [Google Gemini 2.5 Flash](https://ai.google.dev/) | In-editor summarization, grammar refinement, and translation |
+| **Hosting & CI/CD** | [Vercel](https://vercel.com/) | Edge deployment, serverless functions, automatic Git previews |
 
 ---
 
 ## 🚀 Getting Started
 
+### Prerequisites
+
+Ensure you have the following installed:
+- [Node.js](https://nodejs.org/) v18.0.0 or later (v20+ recommended)
+- [npm](https://www.npmjs.com/), [yarn](https://yarnpkg.com/), or [pnpm](https://pnpm.io/)
+- A [Clerk](https://clerk.com/) Account
+- A [Liveblocks](https://liveblocks.io/) Account
+- A [Firebase](https://console.firebase.google.com/) Project with Firestore enabled
+- *(Optional)* A [Google AI Studio](https://aistudio.google.com/) API Key for Gemini AI
+
+---
+
+### Installation & Setup
+
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/kushGupta-15/Docflow.git
    cd Docflow
    ```
 
@@ -123,78 +163,100 @@ service_key.json
    npm install
    ```
 
-3. **Deploy Firestore Security Rules (Optional but recommended):**
+3. **Configure Environment Variables:**
+   Create a `.env` file in the root directory:
+   ```env
+   # Clerk Authentication
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+   CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
+
+   # Liveblocks Real-time Collaboration
+   NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY=pk_dev_your_liveblocks_public_key
+   LIVEBLOCKS_PRIVATE_KEY=sk_dev_your_liveblocks_private_key
+
+   # Application URL
+   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+
+   # Firebase Client Configuration
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+   NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+   # Firebase Admin Configuration (Server-side)
+   FIREBASE_PROJECT_ID=your_project_id
+   FIREBASE_CLIENT_EMAIL=your_service_account_email
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+   # Google Gemini AI (Optional - falls back to built-in simulation if unconfigured)
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+
+   > [!TIP]
+   > For local development, you can place your downloaded Firebase Service Account JSON file as `service_key.json` in the root directory. It is automatically ignored by Git.
+
+4. **Deploy Firestore Security Rules:**
    ```bash
    firebase deploy --only firestore:rules
    ```
 
-4. **Run the development server:**
+5. **Start the local development server:**
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) (or the assigned port) in your browser.
-
-5. **Build for production:**
-   ```bash
-   npm run build
-   npm start
-   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 📁 Project Structure
+## 🔒 Security & Authorization
 
-```
-├── actions/
-│   ├── actions.ts             # Server actions (document CRUD, member invite & removal)
-│   └── geminiActions.ts       # Gemini AI actions (summarization, refinement, translation)
-├── app/
-│   ├── auth-endpoint/         # Secured Liveblocks session authentication endpoint
-│   ├── doc/
-│   │   └── [id]/              # Collaborative document workspace page
-│   ├── layout.tsx             # Root application layout with Clerk and UI providers
-│   ├── page.tsx               # Workspace Dashboard entry point
-│   └── globals.css            # Tailwind styles and theme definitions
-├── components/
-│   ├── AIAssistant.tsx        # Gemini AI modal dialog (Summarize, Polish, Translate)
-│   ├── Avatars.tsx            # Live collaborator presence avatar stack
-│   ├── Dashboard.tsx          # Workspace dashboard with template gallery & doc grid
-│   ├── DeleteDocument.tsx     # Owner-only document deletion modal
-│   ├── Document.tsx           # Document header & live editor container
-│   ├── Editor.tsx             # BlockNote collaborative rich-text editor
-│   ├── InviteUser.tsx         # Collaborator invitation modal with role selection
-│   ├── ManageUsers.tsx        # Manage members & revoke collaborator access dialog
-│   ├── LiveBlocksProvider.tsx # Liveblocks room provider & context wrapper
-│   └── SideBar.tsx            # Navigation sidebar with personal and shared documents
-├── firestore.rules            # Production Cloud Firestore Security Rules
-├── firebase.ts                # Client-side Firebase initialization (env-based)
-├── firebase-admin.ts          # Server-side Firebase Admin SDK initialization
-├── types/
-│   └── types.ts               # User, room, and custom type definitions
-└── README.md                  # Project documentation
-```
+DocFlow follows the principle of least privilege with layered defenses:
+
+1. **Server Actions Authorization (`actions/actions.ts`)**:
+   - `createNewDocument`: Requires an authenticated Clerk session; automatically creates owner metadata.
+   - `updateDocumentTitle`: Verifies the requesting user holds an `owner` or `editor` role before modifying Firestore.
+   - `inviteUserToRoom`: Strictly verifies that the inviter is the registered document `owner`.
+   - `removeUserFromRoom`: Restricts collaborator revocation to document owners only; prevents owner self-removal.
+   - `deleteDocument`: Restricts deletion exclusively to the document owner; cascades cleanup across collaborator subcollections.
+
+2. **Liveblocks Token Gating (`/app/auth-endpoint/route.ts`)**:
+   - Every connection to a Liveblocks room requires a signed session token.
+   - The endpoint checks the user's room list (`/users/{email}/rooms/{roomId}`) or the document's users subcollection before admitting the user.
+   - Grants `FULL_ACCESS` to owners and editors, while restricting viewers to read-only mode.
+
+3. **Cloud Firestore Rules (`firestore.rules`)**:
+   - Declaratively restricts access to valid room members.
+   - Protects immutable timestamps and owner identifiers from tampering.
 
 ---
 
-## 🔒 Security Architecture
+## 🌐 Deployment
 
-1. **Broken Object Level Authorization (BOLA) Protection**:
-   - `deleteDocument` verifies that the requesting user's email matches the document's `ownerId` in Firestore before deleting.
-   - `inviteUserToRoom` verifies that the inviter is the document owner before creating membership records.
-   - `removeUserFromRoom` verifies that only the document owner can revoke member access, and prevents removing the owner.
+### Deploying to Vercel
 
-2. **Liveblocks Session Authorization**:
-   - `/app/auth-endpoint/route.ts` queries the user's room list (`/users/{email}/rooms/{roomId}`) before authorizing connection.
-   - Denies room access immediately if the user is neither the owner nor an invited collaborator.
-   - Sets appropriate Liveblocks room permissions based on role (`FULL_ACCESS` for owner/editor, read-only for viewer).
+The fastest way to deploy DocFlow is with [Vercel](https://vercel.com/):
 
-3. **Firestore Security Rules (`firestore.rules`)**:
-   - Enforces authentication for all database reads and writes.
-   - Restricts document deletion exclusively to `ownerId`.
-   - Restricts member modification subcollections to authorized owners.
+1. **Push your code to GitHub.**
+2. **Import the repository into Vercel.**
+3. **Configure the Environment Variables** in the Vercel Project Settings matching your `.env`.
+4. **Deploy!**
+
+Alternatively, deploy directly using the Vercel CLI:
+```bash
+npx vercel --prod
+```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by Kush Gupta</sub>
+</div>
