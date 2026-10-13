@@ -5,7 +5,7 @@ import liveblocks from "@/lib/liveblocks"
 import { auth } from "@clerk/nextjs/server"
 import { DocumentRole } from "@/types/types"
 
-export async function createNewDocument() {
+export async function createNewDocument(initialTitle: string = 'New Doc') {
   auth().protect()
 
   const { sessionClaims } = await auth()
@@ -20,7 +20,7 @@ export async function createNewDocument() {
   const documentCollectionRef = adminDb.collection('documents')
 
   const docRef = await documentCollectionRef.add({
-    title: 'New Doc',
+    title: initialTitle,
     ownerId: userEmail,
     createdAt: new Date()
   })
@@ -209,3 +209,123 @@ export async function inviteUserToRoom(
     return { success: false, error: error.message || "Failed to invite user" }
   }
 }
+
+export async function removeUserFromRoom(roomId: string, targetEmail: string) {
+  auth().protect();
+
+  const { sessionClaims } = await auth();
+  const callerEmail = sessionClaims?.email;
+  if (!callerEmail) {
+    return { success: false, error: "Unauthorized" };
+  }
+
+  if (!roomId || !targetEmail) {
+    return { success: false, error: "Invalid document ID or email" };
+  }
+
+  const normalizedTargetEmail = targetEmail.trim().toLowerCase();
+
+  try {
+    const adminDb = getAdminDb();
+
+    // 1. Verify caller is owner of the room
+    const roomRef = adminDb.collection('documents').doc(roomId);
+    const roomDoc = await roomRef.get();
+    if (!roomDoc.exists) {
+      return { success: false, error: "Document not found" };
+    }
+
+    const callerRoomDoc = await adminDb
+      .collection('users')
+      .doc(callerEmail)
+      .collection('rooms')
+      .doc(roomId)
+      .get();
+
+    const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
+                    (roomDoc.data()?.ownerId === callerEmail);
+
+    if (!isOwner) {
+      return { success: false, error: "Forbidden: Only the owner can remove members" };
+    }
+
+    if (callerEmail.toLowerCase() === normalizedTargetEmail) {
+      return { success: false, error: "The document owner cannot be removed" };
+    }
+
+    // 2. Remove from users/{targetEmail}/rooms/{roomId}
+    await adminDb
+      .collection('users')
+      .doc(normalizedTargetEmail)
+      .collection('rooms')
+      .doc(roomId)
+      .delete();
+
+    // 3. Remove from documents/{roomId}/users/{targetEmail}
+    await roomRef.collection('users').doc(normalizedTargetEmail).delete();
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error removing user from room:", error);
+    return { success: false, error: error.message || "Failed to remove user" };
+  }
+}
+
+export async function getRoomUsers(roomId: string) {
+  auth().protect();
+
+  const { sessionClaims } = await auth();
+  const callerEmail = sessionClaims?.email;
+  if (!callerEmail) {
+    return { success: false, users: [], error: "Unauthorized" };
+  }
+
+  if (!roomId) {
+    return { success: false, users: [], error: "Room ID required" };
+  }
+
+  try {
+    const adminDb = getAdminDb();
+    const roomRef = adminDb.collection('documents').doc(roomId);
+    const roomDoc = await roomRef.get();
+
+    if (!roomDoc.exists) {
+      return { success: false, users: [], error: "Document not found" };
+    }
+
+    // Fetch members from documents/{roomId}/users
+    const usersSnapshot = await roomRef.collection('users').get();
+    const users: Array<{
+      email: string;
+      role: DocumentRole;
+      invitedBy?: string;
+    }> = [];
+
+    // Also include document owner if not explicitly in subcollection
+    const ownerId = roomDoc.data()?.ownerId;
+    let ownerIncluded = false;
+
+    usersSnapshot.docs.forEach((doc: any) => {
+      const data = doc.data();
+      if (data.email === ownerId) ownerIncluded = true;
+      users.push({
+        email: data.email || doc.id,
+        role: data.role || 'editor',
+        invitedBy: data.invitedBy,
+      });
+    });
+
+    if (!ownerIncluded && ownerId) {
+      users.unshift({
+        email: ownerId,
+        role: 'owner',
+      });
+    }
+
+    return { success: true, users };
+  } catch (error: any) {
+    console.error("Error fetching room users:", error);
+    return { success: false, users: [], error: error.message };
+  }
+}
+
