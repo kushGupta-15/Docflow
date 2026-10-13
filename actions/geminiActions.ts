@@ -21,51 +21,55 @@ async function callGemini(prompt: string, systemInstruction?: string): Promise<G
     }
   }
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          systemInstruction: systemInstruction
-            ? {
-                parts: [{ text: systemInstruction }],
-              }
-            : undefined,
-        }),
+  const models = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+  let lastError = '';
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            systemInstruction: systemInstruction
+              ? {
+                  parts: [{ text: systemInstruction }],
+                }
+              : undefined,
+          }),
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        if (resultText) {
+          return { success: true, result: resultText }
+        }
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        lastError = errData?.error?.message || `Gemini API returned status ${response.status}`
+        console.warn(`Model ${model} failed: ${lastError}. Trying fallback model...`)
       }
-    )
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}))
-      const message = errData?.error?.message || `Gemini API returned status ${response.status}`
-      return { success: false, error: message }
+    } catch (err: any) {
+      lastError = err.message || 'Unknown network error'
+      console.warn(`Model ${model} network error: ${lastError}`)
     }
-
-    const data = await response.json()
-    const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!resultText) {
-      return { success: false, error: 'No response received from Gemini' }
-    }
-
-    return { success: true, result: resultText }
-  } catch (error: any) {
-    console.error('Error invoking Gemini API:', error)
-    return { success: false, error: error.message || 'Failed to call Gemini API' }
   }
+
+  return { success: false, error: lastError || 'Failed to generate response from Gemini' }
 }
 
 export async function summarizeDocument(content: string): Promise<GeminiResponse> {
