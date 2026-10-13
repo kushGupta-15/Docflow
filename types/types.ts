@@ -3,3 +3,6 @@ export type User = {
   email: string;
   image: string
 }
+
+export type DocumentRole = 'owner' | 'editor' | 'viewer';
+

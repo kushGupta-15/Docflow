@@ -19,10 +19,9 @@ import SideBarOption from "./SideBarOption"
 
 interface RoomDocument extends DocumentData {
   createdAt: string;
-  role: 'owner' | 'editor';
+  role: 'owner' | 'editor' | 'viewer';
   roomId: string;
   userId: string;
-
 }
 
 function SideBar() {

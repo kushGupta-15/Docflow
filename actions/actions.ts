@@ -3,96 +3,209 @@
 import { getAdminDb } from "@/firebase-admin"
 import liveblocks from "@/lib/liveblocks"
 import { auth } from "@clerk/nextjs/server"
+import { DocumentRole } from "@/types/types"
 
 export async function createNewDocument() {
-  auth().protect() //if not authenticated when clicking on createNewDocument, it will redirect to log in form
+  auth().protect()
 
-  const {sessionClaims} = await auth()
+  const { sessionClaims } = await auth()
+  const userEmail = sessionClaims?.email;
+  if (!userEmail) {
+    throw new Error('User email not found in session');
+  }
 
-  console.log('Creating document for user:', sessionClaims?.email);
+  console.log('Creating document for user:', userEmail);
 
   const adminDb = getAdminDb();
   const documentCollectionRef = adminDb.collection('documents')
 
   const docRef = await documentCollectionRef.add({
-    title: 'New Doc'
+    title: 'New Doc',
+    ownerId: userEmail,
+    createdAt: new Date()
   })
 
   console.log('Document created with ID:', docRef.id);
 
+  // Link room under user's profile
   await adminDb
-  .collection('users')
-  .doc(sessionClaims?.email!)
-  .collection('rooms')
-  .doc(docRef.id)
-  .set({
-    userId: sessionClaims?.email!,
-    role: 'owner',
-    createdAt: new Date(),
-    roomId: docRef.id
-  })
+    .collection('users')
+    .doc(userEmail)
+    .collection('rooms')
+    .doc(docRef.id)
+    .set({
+      userId: userEmail,
+      role: 'owner' as DocumentRole,
+      createdAt: new Date(),
+      roomId: docRef.id
+    })
 
-  console.log('Room reference created for user:', sessionClaims?.email);
+  // Also record membership under document for room-level queries
+  await adminDb
+    .collection('documents')
+    .doc(docRef.id)
+    .collection('users')
+    .doc(userEmail)
+    .set({
+      email: userEmail,
+      role: 'owner' as DocumentRole,
+      createdAt: new Date()
+    })
 
-  return {docId: docRef.id}
+  console.log('Room references created for user:', userEmail);
+
+  return { docId: docRef.id }
 }
 
 export async function deleteDocument(roomId: string) {
   auth().protect()
 
-  console.log(roomId);
+  const { sessionClaims } = await auth()
+  const userEmail = sessionClaims?.email;
+  if (!userEmail) {
+    return { success: false, error: "Unauthorized: User not authenticated" }
+  }
+
+  if (!roomId || typeof roomId !== 'string') {
+    return { success: false, error: "Invalid document ID" }
+  }
 
   try {
     const adminDb = getAdminDb();
 
-    await adminDb.collection('documents').doc(roomId).delete() //delete roomId on server
+    // Verify document exists
+    const roomRef = adminDb.collection('documents').doc(roomId);
+    const roomDoc = await roomRef.get();
+    if (!roomDoc.exists) {
+      return { success: false, error: "Document not found" }
+    }
 
-    const query = await adminDb.collectionGroup('rooms').where('roomId', '==', roomId).get() //retrieve roomId attached to all users
+    // Verify caller ownership
+    const callerRoomDoc = await adminDb
+      .collection('users')
+      .doc(userEmail)
+      .collection('rooms')
+      .doc(roomId)
+      .get();
 
-    const batch = adminDb.batch()
+    const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
+                    (roomDoc.data()?.ownerId === userEmail);
 
-    query.docs.forEach((doc: any) => { //delete in bulk all references to room aka document
-      batch.delete(doc.ref)
-    })
+    if (!isOwner) {
+      console.warn(`User ${userEmail} attempted unauthorized deletion of room ${roomId}`);
+      return { success: false, error: "Forbidden: Only the document owner can delete this document" }
+    }
 
-    await batch.commit() //execute command
+    // Delete the document itself
+    await roomRef.delete();
 
-    await liveblocks.deleteRoom(roomId) //delete room in liveblocks
+    // Batch delete room users in documents/{roomId}/users
+    const docUsersSnapshot = await roomRef.collection('users').get();
+    const batch = adminDb.batch();
+    docUsersSnapshot.docs.forEach((doc: any) => {
+      batch.delete(doc.ref);
+    });
 
-    return {success: true}
+    // Delete room reference across all users
+    const query = await adminDb.collectionGroup('rooms').where('roomId', '==', roomId).get();
+    query.docs.forEach((doc: any) => {
+      batch.delete(doc.ref);
+    });
 
-  } catch (error) {
+    await batch.commit();
 
-    console.log(error);
-    return {success: false}
+    // Delete room in Liveblocks
+    try {
+      await liveblocks.deleteRoom(roomId);
+    } catch (lbError) {
+      console.warn("Liveblocks deleteRoom non-fatal error:", lbError);
+    }
 
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error deleting document:", error);
+    return { success: false, error: error.message || "Failed to delete document" }
   }
-
 }
 
-export async function inviteUserToRoom(roomId: string, email: string) {
+export async function inviteUserToRoom(
+  roomId: string,
+  email: string,
+  role: DocumentRole = 'editor'
+) {
   auth().protect()
 
-  console.log(roomId, email);
+  const { sessionClaims } = await auth()
+  const callerEmail = sessionClaims?.email;
+  if (!callerEmail) {
+    return { success: false, error: "Unauthorized: User not authenticated" }
+  }
+
+  if (!roomId || typeof roomId !== 'string') {
+    return { success: false, error: "Invalid document ID" }
+  }
+
+  const targetEmail = email?.trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!targetEmail || !emailRegex.test(targetEmail)) {
+    return { success: false, error: "Please enter a valid email address" }
+  }
+
+  if (role !== 'editor' && role !== 'viewer') {
+    return { success: false, error: "Invalid role. Role must be 'editor' or 'viewer'" }
+  }
 
   try {
     const adminDb = getAdminDb();
 
-    await adminDb.collection('users').doc(email).collection('rooms').doc(roomId).set({
-      userId: email,
-      role: 'editor',
+    // 1. Verify that document exists
+    const roomRef = adminDb.collection('documents').doc(roomId);
+    const roomDoc = await roomRef.get();
+    if (!roomDoc.exists) {
+      return { success: false, error: "Document not found" }
+    }
+
+    // 2. Verify caller is owner of the document
+    const callerRoomDoc = await adminDb
+      .collection('users')
+      .doc(callerEmail)
+      .collection('rooms')
+      .doc(roomId)
+      .get();
+
+    const isOwner = (callerRoomDoc.exists && callerRoomDoc.data()?.role === 'owner') ||
+                    (roomDoc.data()?.ownerId === callerEmail);
+
+    if (!isOwner) {
+      console.warn(`User ${callerEmail} attempted unauthorized invitation to room ${roomId}`);
+      return { success: false, error: "Forbidden: Only the document owner can invite collaborators" }
+    }
+
+    // 3. Attach room to invited user in users collection
+    await adminDb
+      .collection('users')
+      .doc(targetEmail)
+      .collection('rooms')
+      .doc(roomId)
+      .set({
+        userId: targetEmail,
+        role,
+        createdAt: new Date(),
+        roomId,
+        invitedBy: callerEmail
+      });
+
+    // 4. Attach user to document's users subcollection
+    await roomRef.collection('users').doc(targetEmail).set({
+      email: targetEmail,
+      role,
       createdAt: new Date(),
-      roomId
-    }) //attach room to user
+      invitedBy: callerEmail
+    });
 
-
-    return {success: true}
-
-  } catch (error) {
-
-    console.log(error);
-    return {success: false}
-
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error inviting user to room:", error);
+    return { success: false, error: error.message || "Failed to invite user" }
   }
-
 }

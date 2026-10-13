@@ -5,68 +5,79 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    // Test Firestore connection first
-    console.log('Testing Firestore connection...');
-    const adminDb = getAdminDb();
-    await adminDb.collection('test').limit(1).get();
-    console.log('Firestore connection successful');
-
-    // Authenticate the request
+    // 1. Authenticate the user session
     const { sessionClaims } = await auth().protect();
+    const userEmail = sessionClaims?.email;
 
-    // Extract room from user info
-    const { room } = await req.json();
-
-    if (!sessionClaims?.email) {
-      return NextResponse.json({ error: "User email not found" }, { status: 400 });
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized: User email not found" }, { status: 401 });
     }
 
-    // Prepare session for USER and combine it with user info from clerk
-    const session = liveblocks.prepareSession(sessionClaims.email, {
-      userInfo: {
-        name: sessionClaims.fullName ?? "",
-        email: sessionClaims.email,
-        avatar: sessionClaims.image ?? "",
-      }
-    });
+    // 2. Extract requested room ID
+    const body = await req.json();
+    const room = body?.room;
 
-    // Check if user is in the room and has access to
-    console.log('Attempting to query Firestore for user:', sessionClaims.email);
-    
-    // Instead of collectionGroup, let's check if the specific room exists and user has access
-    // First, let's try to get the room document directly
-    const roomRef = adminDb.collection('documents').doc(room);
+    if (!room || typeof room !== "string") {
+      return NextResponse.json({ error: "Bad Request: room ID is required" }, { status: 400 });
+    }
+
+    const adminDb = getAdminDb();
+
+    // 3. Verify room exists
+    const roomRef = adminDb.collection("documents").doc(room);
     const roomDoc = await roomRef.get();
-    
+
     if (!roomDoc.exists) {
-      console.log('Room does not exist:', room);
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
-    
-    // Check if user has access to this room by checking the users subcollection
-    const userInRoomRef = roomRef.collection('users').doc(sessionClaims.email);
-    const userInRoomDoc = await userInRoomRef.get();
-    
-    console.log('User in room check:', userInRoomDoc.exists);
-    
-    if (userInRoomDoc.exists) {
-      session.allow(room, session.FULL_ACCESS);
 
-      const { body, status } = await session.authorize();
+    // 4. Verify user membership across both schemas (users collection & document subcollection)
+    const [userRoomDoc, userInRoomDoc] = await Promise.all([
+      adminDb.collection("users").doc(userEmail).collection("rooms").doc(room).get(),
+      roomRef.collection("users").doc(userEmail).get(),
+    ]);
 
-      return NextResponse.json(JSON.parse(body), { status });
-    } else {
-      // For development: if room exists but no user permissions, allow access
-      // Remove this in production and implement proper user invitation flow
-      console.log('User not explicitly in room, but room exists. Allowing access for development.');
-      session.allow(room, session.FULL_ACCESS);
+    const isDocumentOwner = roomDoc.data()?.ownerId === userEmail;
 
-      const { body, status } = await session.authorize();
-
-      return NextResponse.json(JSON.parse(body), { status });
+    let role: string | null = null;
+    if (isDocumentOwner || userRoomDoc.data()?.role === "owner" || userInRoomDoc.data()?.role === "owner") {
+      role = "owner";
+    } else if (userInRoomDoc.exists) {
+      role = userInRoomDoc.data()?.role || "editor";
+    } else if (userRoomDoc.exists) {
+      role = userRoomDoc.data()?.role || "editor";
     }
-  } catch (error) {
-    console.error("Error in POST handler:", error);
+
+    // 5. Strictly enforce authorization: Reject unauthorized users
+    if (!role) {
+      console.warn(`Access denied for ${userEmail} to room ${room}`);
+      return NextResponse.json(
+        { error: "Forbidden: You do not have permission to access this document" },
+        { status: 403 }
+      );
+    }
+
+    // 6. Prepare session for user with clerk identity info
+    const session = liveblocks.prepareSession(userEmail, {
+      userInfo: {
+        name: sessionClaims.fullName || userEmail.split("@")[0],
+        email: userEmail,
+        avatar: sessionClaims.image ?? "",
+      },
+    });
+
+    // 7. Grant access level based on role
+    if (role === "viewer") {
+      session.allow(room, session.READ_ACCESS);
+    } else {
+      session.allow(room, session.FULL_ACCESS);
+    }
+
+    const { body: authBody, status } = await session.authorize();
+    return NextResponse.json(JSON.parse(authBody), { status });
+  } catch (error: any) {
+    console.error("Error in Liveblocks auth endpoint:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

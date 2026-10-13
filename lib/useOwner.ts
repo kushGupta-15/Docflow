@@ -14,20 +14,31 @@ function useOwner() {
   );
 
   useEffect(() => {
-    if (usersInRoom?.docs && usersInRoom.docs.length > 0) {
+    if (!user || !usersInRoom) {
+      setIsOwner(false);
+      return;
+    }
+
+    const userEmail = user.emailAddresses[0]?.emailAddress;
+    if (!userEmail) {
+      setIsOwner(false);
+      return;
+    }
+
+    if (usersInRoom.docs && usersInRoom.docs.length > 0) {
       const owners = usersInRoom.docs.filter(
         (doc) => doc.data().role === 'owner'
-      )
+      );
 
-      if (
-        owners.some(
-          (owner) => owner.data().userId === user?.emailAddresses[0].toString()
-        )
-      ) {
-        setIsOwner(true)
-      }
+      const hasOwnerRole = owners.some(
+        (owner) => owner.data().userId === userEmail
+      );
+
+      setIsOwner(hasOwnerRole);
+    } else {
+      setIsOwner(false);
     }
-  }, [usersInRoom, user])
+  }, [usersInRoom, user]);
 
   return isOwner
 }

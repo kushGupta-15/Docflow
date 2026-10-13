@@ -19,31 +19,30 @@ import { Input } from "./ui/input"
 
 
 function InviteUser() {
-
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'editor' | 'viewer'>('editor')
 
   const pathname = usePathname()
   const router = useRouter()
 
-
   const handleInvite = async (e: FormEvent) => {
     e.preventDefault()
 
-    const roomId = pathname.split('/').pop() //pop gets last element
+    const roomId = pathname.split('/').pop()
 
     if (!roomId) return
 
     startTransition(async () => {
-      const { success } = await inviteUserToRoom(roomId, email)
+      const result = await inviteUserToRoom(roomId, email, role)
 
-      if (success) {
+      if (result.success) {
         setIsOpen(false);
         setEmail('')
-        toast.success("User added successfully!");
+        toast.success(`User invited as ${role} successfully!`);
       } else {
-        toast.error("Failed to add user!");
+        toast.error((result as any).error || "Failed to invite user!");
       }
     })
   }
@@ -55,21 +54,33 @@ function InviteUser() {
       </Button>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Are you absolutely sure you want to delete?</DialogTitle>
+          <DialogTitle>Invite Collaborator</DialogTitle>
           <DialogDescription>
-            This will delete content and all users from document.
+            Invite another user to access this document via email.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleInvite} className="flex gap-2">
+        <form onSubmit={handleInvite} className="flex flex-col gap-3">
           <Input
             type="email"
-            placeholder="Email"
+            placeholder="Collaborator Email"
             className="w-full"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
-          <Button type="submit" disabled={!email || isPending}>
-            {isPending ? "Inviting..." : "Invite"}
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <span className="font-medium">Permission:</span>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
+              className="border rounded p-1 text-sm bg-background"
+            >
+              <option value="editor">Editor (Can edit)</option>
+              <option value="viewer">Viewer (Read only)</option>
+            </select>
+          </div>
+          <Button type="submit" disabled={!email || isPending} className="mt-2">
+            {isPending ? "Inviting..." : `Invite as ${role === 'editor' ? 'Editor' : 'Viewer'}`}
           </Button>
         </form>
       </DialogContent>
