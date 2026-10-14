@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Liveblocks](https://img.shields.io/badge/Liveblocks-Real--Time-red?style=for-the-badge&logo=liveblocks&logoColor=white)](https://liveblocks.io/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-3.8_Flash-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://ai.google.dev/)
 [![Clerk Auth](https://img.shields.io/badge/Clerk-Authentication-6C47FF?style=for-the-badge&logo=clerk&logoColor=white)](https://clerk.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
@@ -18,7 +18,7 @@
   A fast, secure, Notion-inspired collaborative document editor. Built with Next.js 14 App Router, Yjs CRDTs, Liveblocks multi-user presence, Cloud Firestore, Clerk authentication, and Google Gemini AI document intelligence.
 </p>
 
-[Explore Architecture](#-system-architecture) • [Key Features](#-key-features) • [Quick Start](#-getting-started) • [Security & RBAC](#-security--authorization) • [Deployment](#-deployment)
+[Visual Overview](#-visual-overview--core-features) • [Explore Architecture](#-system-architecture) • [Key Features](#-key-features) • [Quick Start](#-getting-started) • [Security & RBAC](#-security--authorization) • [Deployment](#-deployment)
 
 ---
 
@@ -27,6 +27,52 @@
 ## 📖 Overview
 
 **DocFlow** is a modern document editing environment engineered for seamless real-time teamwork. Combining the power of block-based rich text editing with conflict-free concurrent synchronization (CRDTs), live multi-cursor presence, and built-in AI document intelligence, DocFlow transforms traditional document authoring into an intuitive and interactive workspace.
+
+---
+
+## 📸 Visual Overview & Core Features
+
+Discover DocFlow's interface and interactive workflows at a glance:
+
+### 1. Workspace Dashboard & Document Feed
+The central control hub greets the authenticated user, displays active room listings in the responsive sidebar, and surfaces the recent documents grid with quick filtering by role (**All**, **Owner**, **Editor**, **Viewer**).
+
+![DocFlow Workspace Dashboard](docs/screenshots/01_workspace_dashboard.png)
+
+---
+
+### 2. Pre-Formatted Template Picker Gallery
+Jump-start documents in seconds using curated starter structures for meeting notes, strategic product roadmaps, agile sprint backlogs, and open brainstorming canvases.
+
+![Template Gallery](docs/screenshots/02_template_gallery.png)
+
+---
+
+### 3. Real-Time Collaborative BlockNote Editor
+Featuring full block-level editing, slash (`/`) commands, rich typography, dark/light theme switching, and live presence avatars displaying connected team members.
+
+![Document Editor](docs/screenshots/03_document_editor.png)
+
+---
+
+### 4. Google Gemini AI Document Intelligence
+Harness the power of Google Gemini directly inside the editor to generate structured executive summaries, distill key takeaways, and outline prioritized action items.
+
+![Gemini AI Summarization](docs/screenshots/04_gemini_ai_summarizer.png)
+
+---
+
+### 5. Multilingual AI Translation Engine
+Break language barriers across distributed global teams with real-time translation powered by Gemini, supporting over 12 international languages.
+
+![Gemini AI Translation](docs/screenshots/05_gemini_ai_translator.png)
+
+---
+
+### 6. Granular Collaborator Directory & Access Control
+Manage document membership with clear role badges (`Owner`, `Editor`, `Viewer`), invite collaborators via email, and securely revoke access.
+
+![Collaborator Management Modal](docs/screenshots/06_collaborators_modal.png)
 
 ---
 
@@ -58,7 +104,7 @@ flowchart TD
     subgraph DatabaseTier["Database & Cloud Services"]
         Firestore["Google Cloud Firestore (Documents & Rooms)"]
         FirebaseAdmin["Firebase Admin SDK"]
-        GeminiAPI["Google Gemini 2.5 Flash API"]
+        GeminiAPI["Google Gemini 3.8 Flash API"]
     end
 
     UI --> Clerk
@@ -103,19 +149,19 @@ flowchart TD
 - **Three-Tier Role-Based Access Control (RBAC)**:
   - 👑 **Owner**: Full administrative control, user invitations, role modifications, and permanent deletion.
   - ✏️ **Editor**: Full read and write capabilities across document content and titles.
-  - 👁️ **Viewer**: Read-only observation access preventing unauthorized alterations.
+  - 👁️ **Viewer**: Strict read-only mode with visual banners, disabled title inputs, and locked BlockNote canvas.
 
 ### 🤖 Gemini AI Document Intelligence
 - **Document Summarization**: Instantly generates an executive summary, core takeaways, and action items from live document content.
 - **Grammar & Tone Refinement**: Polishes sentence structure, clarity, and professional style while preserving original meaning.
-- **Multi-Language Translation**: Real-time translation supporting **11 languages** (*Spanish, French, German, Japanese, Chinese, Hindi, Portuguese, Italian, Russian, Arabic, Korean*).
+- **Multi-Language Translation**: Real-time translation supporting **12+ languages** (*Spanish, French, German, Japanese, Chinese, Hindi, Portuguese, Italian, Russian, Arabic, Korean*).
 - **One-Click Export**: Copy polished AI outputs directly to your clipboard or review suggestions side-by-side.
 
 ### 🛡️ Hardened Security Architecture
 - **Broken Object Level Authorization (BOLA) Protection**: Server-side permission validation on all sensitive actions (`deleteDocument`, `inviteUserToRoom`, `removeUserFromRoom`, `updateDocumentTitle`).
 - **Liveblocks Token Lockdown**: The `/app/auth-endpoint` verifies explicit membership in Cloud Firestore before issuing room access tokens.
 - **Production-Grade Firestore Rules**: Granular database security rules enforcing document isolation and role boundaries.
-- **Node 26 Compatibility**: Hardened server runtime with automated polyfills for legacy cryptographic libraries.
+- **Viewer Role Lockdown**: Both server actions and UI controls dynamically lock editing capabilities for viewers.
 
 ---
 
@@ -131,7 +177,7 @@ flowchart TD
 | **Database** | [Google Cloud Firestore](https://firebase.google.com/docs/firestore) | Real-time NoSQL document & room metadata storage |
 | **Admin Operations** | [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) | Privileged server-side mutations and role validation |
 | **Authentication** | [Clerk](https://clerk.com/) | OAuth login, session tokens, user profile management |
-| **Artificial Intelligence** | [Google Gemini 2.5 Flash](https://ai.google.dev/) | In-editor summarization, grammar refinement, and translation |
+| **Artificial Intelligence** | [Google Gemini 3.8 Flash](https://ai.google.dev/) | In-editor summarization, grammar refinement, and translation |
 | **Hosting & CI/CD** | [Vercel](https://vercel.com/) | Edge deployment, serverless functions, automatic Git previews |
 
 ---
@@ -146,7 +192,7 @@ Ensure you have the following installed:
 - A [Clerk](https://clerk.com/) Account
 - A [Liveblocks](https://liveblocks.io/) Account
 - A [Firebase](https://console.firebase.google.com/) Project with Firestore enabled
-- *(Optional)* A [Google AI Studio](https://aistudio.google.com/) API Key for Gemini AI
+- A [Google AI Studio](https://aistudio.google.com/) API Key for Gemini AI
 
 ---
 
@@ -191,12 +237,9 @@ Ensure you have the following installed:
    FIREBASE_CLIENT_EMAIL=your_service_account_email
    FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
-   # Google Gemini AI (Optional - falls back to built-in simulation if unconfigured)
+   # Google Gemini AI
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
-
-   > [!TIP]
-   > For local development, you can place your downloaded Firebase Service Account JSON file as `service_key.json` in the root directory. It is automatically ignored by Git.
 
 4. **Deploy Firestore Security Rules:**
    ```bash
@@ -225,7 +268,7 @@ DocFlow follows the principle of least privilege with layered defenses:
 2. **Liveblocks Token Gating (`/app/auth-endpoint/route.ts`)**:
    - Every connection to a Liveblocks room requires a signed session token.
    - The endpoint checks the user's room list (`/users/{email}/rooms/{roomId}`) or the document's users subcollection before admitting the user.
-   - Grants `FULL_ACCESS` to owners and editors, while restricting viewers to read-only mode.
+   - Grants `FULL_ACCESS` to owners and editors, while restricting viewers to read-only mode (`READ_ACCESS`).
 
 3. **Cloud Firestore Rules (`firestore.rules`)**:
    - Declaratively restricts access to valid room members.
